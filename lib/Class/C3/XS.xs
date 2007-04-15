@@ -3,7 +3,7 @@
 #include "perl.h"
 #include "XSUB.h"
 
-/* Most of this code is backported from bleadperl's
+/* Most of this code is backported from the bleadperl patch's
    mro.c, and then modified to work with Class::C3's
    internals.
 */
@@ -291,9 +291,27 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     }
 
     if(items > 0) {
+        SV* sub_sv = sv_2mortal(newSVpv(subname, subname_len));
+        HV* cc3_mro = get_hv("Class::C3::MRO", 0);
+        SV* methods = sv_2mortal(newSVpv("methods", 7));
+
         while (items--) {
             linear_sv = *linear_svp++;
             assert(linear_sv);
+
+            if(cc3_mro) {
+                HE* he_cc3_mro_class = hv_fetch_ent(cc3_mro, linear_sv, 0, 0);
+                if(he_cc3_mro_class) {
+                    HV* cc3_mro_class = (HV*)HeVAL(he_cc3_mro_class);
+                    HE* he_cc3_mro_class_methods = hv_fetch_ent(cc3_mro_class, methods, 0, 0);
+                    if(he_cc3_mro_class_methods) {
+                        HV* cc3_mro_class_methods = (HV*)HeVAL(he_cc3_mro_class_methods);
+                        if(hv_exists_ent(cc3_mro_class_methods, sub_sv, 0))
+                            continue;
+                    }
+                }
+            }
+
             cstash = gv_stashsv(linear_sv, FALSE);
 
             if (!cstash) {
@@ -304,8 +322,6 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
             }
 
             assert(cstash);
-
-/* XXX we need to fetch from %Class::C3::MRO, not the real stash table */
 
             gvp = (GV**)hv_fetch(cstash, subname, subname_len, 0);
             if (!gvp) continue;
