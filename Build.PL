@@ -6,6 +6,9 @@ my $build = Module::Build->new(
     module_name => 'Class::C3::XS',
     license => 'perl',
     optional => {},
+    requires => {
+        'perl'       => 5.008000,
+    },
     build_requires => {
         'Test::More' => '0.47',
     },

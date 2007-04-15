@@ -1,7 +1,7 @@
 
 package Class::C3::XS;
 
-our $VERSION = '0.15';
+our $VERSION = '0.15_01';
 
 =pod
 
@@ -38,7 +38,7 @@ it under the same terms as Perl itself.
 
 =cut
 
-# TODO: put XSLoader stuff here
-# TODO: shut off redef warnings and set Class::C3::calculateMRO = Class::C3::XS::calculateMRO
+require XSLoader;
+XSLoader::load('Class::C3::XS', $VERSION);
 
 1;
