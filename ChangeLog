@@ -1,5 +1,8 @@
 Revision history for Perl extension Class::C3::XS
 
+0.01_04 Mon Apr 16, 2007
+	Fix threads issue?
+
 0.01_03 Mon Apr 16, 2007
 	Fix AvARRAY lvalue issue
 

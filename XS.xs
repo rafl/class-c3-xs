@@ -8,9 +8,6 @@
    internals.
 */
 
-/* This is %next::METHOD_CACHE */
-STATIC HV* nmcache;
-
 AV*
 __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
 {
@@ -175,6 +172,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     CV* cand_cv = NULL;
     const char *hvname;
     I32 items;
+    HV* nmcache;
     HE* cache_entry;
     SV* cachekey;
 
@@ -255,6 +253,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     sv_catpvn(cachekey, "|", 1);
     sv_catsv(cachekey, sv);
 
+    nmcache = get_hv("next::METHOD_CACHE", 1);
     if((cache_entry = hv_fetch_ent(nmcache, cachekey, 0, 0))) {
         SV* val = HeVAL(cache_entry);
         if(val == &PL_sv_undef) {
@@ -435,7 +434,6 @@ XS(XS_maybe_next_method)
 MODULE = Class::C3::XS	PACKAGE = Class::C3::XS
 
 BOOT:
-    nmcache = get_hv("next::METHOD_CACHE", 1);
     newXS("Class::C3::XS::calculateMRO", XS_Class_C3_XS_calculateMRO, __FILE__);
     newXS("next::can", XS_next_can, __FILE__);
     newXS("next::method", XS_next_method, __FILE__);
