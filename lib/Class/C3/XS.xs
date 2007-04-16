@@ -293,7 +293,6 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     if(items > 0) {
         SV* sub_sv = sv_2mortal(newSVpv(subname, subname_len));
         HV* cc3_mro = get_hv("Class::C3::MRO", 0);
-        SV* methods = sv_2mortal(newSVpv("methods", 7));
 
         while (items--) {
             linear_sv = *linear_svp++;
@@ -302,10 +301,10 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
             if(cc3_mro) {
                 HE* he_cc3_mro_class = hv_fetch_ent(cc3_mro, linear_sv, 0, 0);
                 if(he_cc3_mro_class) {
-                    HV* cc3_mro_class = (HV*)HeVAL(he_cc3_mro_class);
-                    HE* he_cc3_mro_class_methods = hv_fetch_ent(cc3_mro_class, methods, 0, 0);
-                    if(he_cc3_mro_class_methods) {
-                        HV* cc3_mro_class_methods = (HV*)HeVAL(he_cc3_mro_class_methods);
+                    HV* cc3_mro_class = (HV*)SvRV(HeVAL(he_cc3_mro_class));
+                    SV** svp_cc3_mro_class_methods = hv_fetch(cc3_mro_class, "methods", 7, 0);
+                    if(svp_cc3_mro_class_methods) {
+                        HV* cc3_mro_class_methods = (HV*)SvRV(*svp_cc3_mro_class_methods);
                         if(hv_exists_ent(cc3_mro_class_methods, sub_sv, 0))
                             continue;
                     }
