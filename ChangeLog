@@ -1,5 +1,8 @@
 Revision history for Perl extension Class::C3::XS
 
+0.01_05 Mon Apr 16, 2007
+	Fixed assumption of defined-ness when looking in %Class::C3::MRO
+
 0.01_04 Mon Apr 16, 2007
 	Fix threads issue?
 

@@ -19,7 +19,6 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
     STRLEN stashname_len;
 
     assert(stash);
-    assert(HvAUX(stash));
 
     stashname = HvNAME(stash);
     stashname_len = strlen(stashname);
@@ -292,12 +291,18 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
             if(cc3_mro) {
                 HE* he_cc3_mro_class = hv_fetch_ent(cc3_mro, linear_sv, 0, 0);
                 if(he_cc3_mro_class) {
-                    HV* cc3_mro_class = (HV*)SvRV(HeVAL(he_cc3_mro_class));
-                    SV** svp_cc3_mro_class_methods = hv_fetch(cc3_mro_class, "methods", 7, 0);
-                    if(svp_cc3_mro_class_methods) {
-                        HV* cc3_mro_class_methods = (HV*)SvRV(*svp_cc3_mro_class_methods);
-                        if(hv_exists_ent(cc3_mro_class_methods, sub_sv, 0))
-                            continue;
+                    SV* cc3_mro_class_sv = HeVAL(he_cc3_mro_class);
+                    if(SvROK(cc3_mro_class_sv)) {
+                        HV* cc3_mro_class = (HV*)SvRV(cc3_mro_class_sv);
+                        SV** svp_cc3_mro_class_methods = hv_fetch(cc3_mro_class, "methods", 7, 0);
+                        if(svp_cc3_mro_class_methods) {
+                            SV* cc3_mro_class_methods_sv = *svp_cc3_mro_class_methods;
+                            if(SvROK(cc3_mro_class_methods_sv)) {
+                                HV* cc3_mro_class_methods = (HV*)SvRV(cc3_mro_class_methods_sv);
+                                if(hv_exists_ent(cc3_mro_class_methods, sub_sv, 0))
+                                    continue;
+                            }
+                        }
                     }
                 }
             }
