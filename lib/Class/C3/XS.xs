@@ -67,7 +67,7 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
                 av_push(isa_lin, newSVsv(isa_item));
             }
             else {
-                isa_lin = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(isa_item_stash, cache, level + 1)); /* recursion */
+                isa_lin = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(aTHX_ isa_item_stash, cache, level + 1)); /* recursion */
             }
             av_push(seqs, (SV*)av_make(AvFILLp(isa_lin)+1, AvARRAY(isa_lin)));
         }
@@ -277,7 +277,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     stashname_len = subname - fq_subname - 2;
     stashname = sv_2mortal(newSVpvn(fq_subname, stashname_len));
 
-    linear_av = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(selfstash, NULL, 0));
+    linear_av = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(aTHX_ selfstash, NULL, 0));
 
     linear_svp = AvARRAY(linear_av);
     items = AvFILLp(linear_av) + 1;
@@ -369,7 +369,7 @@ XS(XS_Class_C3_XS_calculateMRO)
     class_stash = gv_stashsv(classname, 0);
     if(!class_stash) croak("No such class: '%s'!", SvPV_nolen(classname));
 
-    res = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(class_stash, cache, 0));
+    res = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(aTHX_ class_stash, cache, 0));
 
     res_items = ret_items = AvFILLp(res) + 1;
     res_ptr = AvARRAY(res);
@@ -396,7 +396,7 @@ XS(XS_next_can)
 #endif
 
     SV* self = ST(0);
-    SV* methcv = __nextcan(self, 0);
+    SV* methcv = __nextcan(aTHX_ self, 0);
 
     PERL_UNUSED_VAR(items);
 
@@ -416,7 +416,7 @@ XS(XS_next_method)
     dMARK;
     dAX;
     SV* self = ST(0);
-    SV* methcv = __nextcan(self, 1);
+    SV* methcv = __nextcan(aTHX_ self, 1);
 
     PL_markstack_ptr++;
     call_sv(methcv, GIMME_V);
@@ -428,7 +428,7 @@ XS(XS_maybe_next_method)
     dMARK;
     dAX;
     SV* self = ST(0);
-    SV* methcv = __nextcan(self, 0);
+    SV* methcv = __nextcan(aTHX_ self, 0);
 
     if(methcv == &PL_sv_undef) {
         ST(0) = &PL_sv_undef;
