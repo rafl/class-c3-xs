@@ -8,6 +8,9 @@
    internals.
 */
 
+/* This is %next::METHOD_CACHE */
+STATIC HV* nmcache;
+
 AV*
 __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
 {
@@ -35,7 +38,6 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
         cache = (HV*)sv_2mortal((SV*)newHV());
     }
     else {
-        sv_dump(cache);
         SV** cache_entry = hv_fetch(cache, stashname, stashname_len, 0);
         if(cache_entry)
             return (AV*)SvREFCNT_inc(*cache_entry);
@@ -180,9 +182,8 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     CV* cand_cv = NULL;
     const char *hvname;
     I32 items;
-    struct mro_meta* selfmeta;
-    HV* nmcache;
     HE* cache_entry;
+    SV* cachekey;
 
     if(sv_isobject(self))
         selfstash = SvSTASH(SvRV(self));
@@ -256,15 +257,12 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
 
     /* If we made it to here, we found our context */
 
-    /* 
-    XXX check %next::METHOD_CACHE 
+    /* cachekey = "objpkg|context::method::name" */
+    cachekey = sv_2mortal(newSVpv(hvname, 0));
+    sv_catpvn(cachekey, "|", 1);
+    sv_catsv(cachekey, sv);
 
-    selfmeta = HvMROMETA(selfstash);
-    if(!(nmcache = selfmeta->mro_nextmethod)) {
-        nmcache = selfmeta->mro_nextmethod = newHV();
-    }
-
-    if((cache_entry = hv_fetch_ent(nmcache, sv, 0, 0))) {
+    if((cache_entry = hv_fetch_ent(nmcache, cachekey, 0, 0))) {
         SV* val = HeVAL(cache_entry);
         if(val == &PL_sv_undef) {
             if(throw_nomethod)
@@ -273,7 +271,6 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
         }
         return SvREFCNT_inc(val);
     }
-    */
 
     /* beyond here is just for cache misses, so perf isn't as critical */
 
@@ -334,15 +331,13 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
                 gv_init(candidate, cstash, subname, subname_len, TRUE);
             if (SvTYPE(candidate) == SVt_PVGV && (cand_cv = GvCV(candidate)) && !GvCVGEN(candidate)) {
                 SvREFCNT_inc((SV*)cand_cv);
-                /* XXX store result in cache */
-                /* hv_store_ent(nmcache, newSVsv(sv), (SV*)cand_cv, 0); */
+                hv_store_ent(nmcache, newSVsv(cachekey), (SV*)cand_cv, 0);
                 return (SV*)cand_cv;
             }
         }
     }
 
-    /* XXX store undef in cache */
-    /* hv_store_ent(nmcache, newSVsv(sv), &PL_sv_undef, 0); */
+    hv_store_ent(nmcache, newSVsv(cachekey), &PL_sv_undef, 0);
     if(throw_nomethod)
         croak("No next::method '%s' found for %s", subname, hvname);
     return &PL_sv_undef;
@@ -447,6 +442,7 @@ XS(XS_maybe_next_method)
 MODULE = Class::C3::XS	PACKAGE = Class::C3::XS
 
 BOOT:
+    nmcache = get_hv("next::METHOD_CACHE", 1);
     newXS("Class::C3::XS::calculateMRO", XS_Class_C3_XS_calculateMRO, __FILE__);
     newXS("next::can", XS_next_can, __FILE__);
     newXS("next::method", XS_next_method, __FILE__);
