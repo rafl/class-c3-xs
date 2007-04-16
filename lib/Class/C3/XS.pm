@@ -1,7 +1,6 @@
-
 package Class::C3::XS;
 
-our $VERSION = '0.15_01';
+our $VERSION = '0.01_01';
 
 =pod
 
@@ -23,15 +22,9 @@ L<Class::C3> instead.
 
 =head1 AUTHOR
 
-Stevan Little, E<lt>stevan@iinteractive.comE<gt>
-
 Brandon L. Black, E<lt>blblack@gmail.comE<gt>
 
-=head1 COPYRIGHT AND LICENSE
-
-Copyright 2005, 2006 by Infinity Interactive, Inc.
-
-L<http://www.iinteractive.com>
+=head1 LICENSE
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

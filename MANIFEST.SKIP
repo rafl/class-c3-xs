@@ -17,3 +17,5 @@ cover_db
 ^#.*#$
 ^\.#
 ^\.c$
+lib/Class/C3/XS.c
+lib/Class/C3/XS.o
