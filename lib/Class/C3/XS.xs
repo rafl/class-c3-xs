@@ -32,14 +32,13 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
               stashname);
 
     if(!cache) {
-        cache = sv_2mortal(newHV());
+        cache = (HV*)sv_2mortal((SV*)newHV());
     }
     else {
-/*
+        sv_dump(cache);
         SV** cache_entry = hv_fetch(cache, stashname, stashname_len, 0);
         if(cache_entry)
             return (AV*)SvREFCNT_inc(*cache_entry);
-*/
     }
 
     /* not in cache, make a new one */
@@ -144,7 +143,7 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
     SvREADONLY_on(retval);
     SvREFCNT_inc(retval); /* for cache storage */
     SvREFCNT_inc(retval); /* for return */
-    /* hv_store(cache, stashname, stashname_len, (SV*)retval, 0); */
+    hv_store(cache, stashname, stashname_len, (SV*)retval, 0);
     return retval;
 }
 
@@ -370,7 +369,7 @@ XS(XS_Class_C3_XS_calculateMRO)
         croak("Usage: calculateMRO(classname[, cache])");
 
     classname = ST(0);
-    if(items == 2) cache = (HV*)ST(1);
+    if(items == 2) cache = (HV*)SvRV(ST(1));
 
     class_stash = gv_stashsv(classname, 0);
     if(!class_stash) croak("No such class: '%s'!", SvPV_nolen(classname));
