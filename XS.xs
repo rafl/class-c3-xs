@@ -119,14 +119,7 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
                     av_push(retval, winner);
                 }
                 if(!sv_cmp(seqhead, winner)) {
-
-                    /* this is basically shift(@seq) in void context */
-                    SvREFCNT_dec(*AvARRAY(seq));
-                    *AvARRAY(seq) = &PL_sv_undef;
-                    AvARRAY(seq) = AvARRAY(seq) + 1;
-                    AvMAX(seq)--;
-                    AvFILLp(seq)--;
-
+                    sv_2mortal(av_shift(seq));
                     if(AvFILLp(seq) < 0) continue;
                     svp = av_fetch(seq, 0, 0);
                     seqhead = *svp;

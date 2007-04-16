@@ -1,2 +1,11 @@
 Revision history for Perl extension Class::C3::XS
 
+0.01_03 Mon Apr 16, 2007
+	Fix AvARRAY lvalue issue
+
+0.01_02 Mon Apr 16, 2007
+	Fix MakeMaker compat, and source compat, maybe
+	  not it will work for more people
+
+0.01_01 Sun Apr 15, 2007
+	Initial Release
