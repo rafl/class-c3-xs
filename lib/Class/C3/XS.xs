@@ -32,10 +32,14 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
               stashname);
 
     if(!cache) {
-        cache = newHV();
+        cache = sv_2mortal(newHV());
     }
     else {
-        /* XXX return cached entry for stashname if available */
+/*
+        SV** cache_entry = hv_fetch(cache, stashname, stashname_len, 0);
+        if(cache_entry)
+            return (AV*)SvREFCNT_inc(*cache_entry);
+*/
     }
 
     /* not in cache, make a new one */
@@ -139,8 +143,8 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
 
     SvREADONLY_on(retval);
     SvREFCNT_inc(retval); /* for cache storage */
-    SvREFCNT_inc(retval); /* for return to caller */
-    /* XXX store in cache storage */
+    SvREFCNT_inc(retval); /* for return */
+    /* hv_store(cache, stashname, stashname_len, (SV*)retval, 0); */
     return retval;
 }
 
@@ -277,8 +281,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     stashname_len = subname - fq_subname - 2;
     stashname = sv_2mortal(newSVpvn(fq_subname, stashname_len));
 
-    linear_av = __mro_linear_isa_c3(selfstash, NULL, 0); /* has ourselves at the top of the list */
-    sv_2mortal((SV*)linear_av);
+    linear_av = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(selfstash, NULL, 0));
 
     linear_svp = AvARRAY(linear_av);
     items = AvFILLp(linear_av) + 1;
@@ -373,7 +376,6 @@ XS(XS_Class_C3_XS_calculateMRO)
     if(!class_stash) croak("No such class: '%s'!", SvPV_nolen(classname));
 
     res = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(class_stash, cache, 0));
-
 
     res_items = ret_items = AvFILLp(res) + 1;
     res_ptr = AvARRAY(res);
