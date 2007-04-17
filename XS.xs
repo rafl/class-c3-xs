@@ -41,7 +41,7 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
 
     /* not in cache, make a new one */
 
-    retval = (AV*)sv_2mortal((SV*)newAV());
+    retval = newAV();
     av_push(retval, newSVpvn(stashname, stashname_len)); /* us first */
 
     gvp = (GV**)hv_fetch(stash, "ISA", 3, FALSE);
@@ -125,17 +125,17 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
                 }
             }
             if(!cand) break;
-            if(!winner)
+            if(!winner) {
+                SvREFCNT_dec(retval);
                 Perl_croak(aTHX_ "Inconsistent hierarchy during C3 merge of class '%s': "
                     "merging failed on parent '%s'", stashname, SvPV_nolen(cand));
+            }
         }
     }
 
     SvREADONLY_on(retval);
-    SvREFCNT_inc(retval); /* for cache storage */
-    SvREFCNT_inc(retval); /* for return */
     hv_store(cache, stashname, stashname_len, (SV*)retval, 0);
-    return retval;
+    return (AV*)SvREFCNT_inc(retval);
 }
 
 STATIC I32
@@ -268,7 +268,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     stashname_len = subname - fq_subname - 2;
     stashname = sv_2mortal(newSVpvn(fq_subname, stashname_len));
 
-    linear_av = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(aTHX_ selfstash, NULL, 0));
+    linear_av = __mro_linear_isa_c3(aTHX_ selfstash, NULL, 0);
 
     linear_svp = AvARRAY(linear_av);
     items = AvFILLp(linear_av) + 1;
@@ -327,6 +327,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
             if (SvTYPE(candidate) != SVt_PVGV)
                 gv_init(candidate, cstash, subname, subname_len, TRUE);
             if (SvTYPE(candidate) == SVt_PVGV && (cand_cv = GvCV(candidate)) && !GvCVGEN(candidate)) {
+                SvREFCNT_dec(linear_av);
                 SvREFCNT_inc((SV*)cand_cv);
                 hv_store_ent(nmcache, newSVsv(cachekey), (SV*)cand_cv, 0);
                 return (SV*)cand_cv;
@@ -334,6 +335,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
         }
     }
 
+    SvREFCNT_dec(linear_av);
     hv_store_ent(nmcache, newSVsv(cachekey), &PL_sv_undef, 0);
     if(throw_nomethod)
         croak("No next::method '%s' found for %s", subname, hvname);
@@ -366,7 +368,7 @@ XS(XS_Class_C3_XS_calculateMRO)
     class_stash = gv_stashsv(classname, 0);
     if(!class_stash) croak("No such class: '%s'!", SvPV_nolen(classname));
 
-    res = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(aTHX_ class_stash, cache, 0));
+    res = __mro_linear_isa_c3(aTHX_ class_stash, cache, 0);
 
     res_items = ret_items = AvFILLp(res) + 1;
     res_ptr = AvARRAY(res);
@@ -375,8 +377,9 @@ XS(XS_Class_C3_XS_calculateMRO)
 
     while(res_items--) {
         SV* res_item = *res_ptr++;
-        XPUSHs(res_item);
+        XPUSHs(sv_2mortal(newSVsv(res_item)));
     }
+    SvREFCNT_dec(res);
 
     PUTBACK;
 

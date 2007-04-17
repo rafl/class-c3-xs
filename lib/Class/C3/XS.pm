@@ -1,6 +1,6 @@
 package Class::C3::XS;
 
-our $VERSION = '0.01_05';
+our $VERSION = '0.01_06';
 
 =pod
 
