@@ -184,7 +184,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
 
     hvname = HvNAME(selfstash);
     if (!hvname)
-        croak("Can't use anonymous symbol table for method lookup");
+        Perl_croak(aTHX_ "Can't use anonymous symbol table for method lookup");
 
     cxix = __dopoptosub_at(cxstack, cxstack_ix);
 
@@ -195,7 +195,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
         /* we may be in a higher stacklevel, so dig down deeper */
         while (cxix < 0) {
             if(top_si->si_type == PERLSI_MAIN)
-                croak("next::method/next::can/maybe::next::method must be used in method context");
+                Perl_croak(aTHX_ "next::method/next::can/maybe::next::method must be used in method context");
             top_si = top_si->si_prev;
             ccstack = top_si->si_cxstack;
             cxix = __dopoptosub_at(ccstack, top_si->si_cxix);
@@ -234,7 +234,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
 
         subname = strrchr(fq_subname, ':');
         if(!subname)
-            croak("next::method/next::can/maybe::next::method cannot find enclosing method");
+            Perl_croak(aTHX_ "next::method/next::can/maybe::next::method cannot find enclosing method");
 
         subname++;
         subname_len = fq_subname_len - (subname - fq_subname);
@@ -257,7 +257,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
         SV* val = HeVAL(cache_entry);
         if(val == &PL_sv_undef) {
             if(throw_nomethod)
-                croak("No next::method '%s' found for %s", subname, hvname);
+                Perl_croak(aTHX_ "No next::method '%s' found for %s", subname, hvname);
             return &PL_sv_undef;
         }
         return SvREFCNT_inc(val);
@@ -338,7 +338,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     SvREFCNT_dec(linear_av);
     hv_store_ent(nmcache, newSVsv(cachekey), &PL_sv_undef, 0);
     if(throw_nomethod)
-        croak("No next::method '%s' found for %s", subname, hvname);
+        Perl_croak(aTHX_ "No next::method '%s' found for %s", subname, hvname);
     return &PL_sv_undef;
 }
 
@@ -366,7 +366,8 @@ XS(XS_Class_C3_XS_calculateMRO)
     if(items == 2) cache = (HV*)SvRV(ST(1));
 
     class_stash = gv_stashsv(classname, 0);
-    if(!class_stash) croak("No such class: '%s'!", SvPV_nolen(classname));
+    if(!class_stash)
+        Perl_croak(aTHX_ "No such class: '%s'!", SvPV_nolen(classname));
 
     res = __mro_linear_isa_c3(aTHX_ class_stash, cache, 0);
 
@@ -384,6 +385,97 @@ XS(XS_Class_C3_XS_calculateMRO)
     PUTBACK;
 
     return;
+}
+
+XS(XS_Class_C3_XS_calc_mdt);
+XS(XS_Class_C3_XS_calc_mdt)
+{
+#ifdef dVAR
+    dVAR; dXSARGS;
+#else
+    dXSARGS;
+#endif
+
+    SV* classname;
+    HV* cache;
+    HV* class_stash;
+    AV* class_mro;
+    HV* our_c3mro; /* $Class::C3::MRO{classname} */
+    SV* has_ovf;
+    HV* methods;
+    I32 mroitems;
+
+    /* temps */
+    HV* hv;
+    HE* he;
+    SV* rv;
+    SV** svp;
+
+    if(items < 1 || items > 2)
+        croak("Usage: calculate_method_dispatch_table(classname[, cache])");
+
+    classname = ST(0);
+    class_stash = gv_stashsv(classname, 0);
+    if(!class_stash)
+        Perl_croak(aTHX_ "No such class: '%s'!", SvPV_nolen(classname));
+
+    if(items == 2) cache = (HV*)SvRV(ST(1));
+
+    class_mro = __mro_linear_isa_c3(aTHX_ class_stash, cache, 0);
+
+    our_c3mro = newHV();
+    hv_store(our_c3mro, "MRO", 3, (SV*)newRV_inc((SV*)class_mro), 0);
+
+    hv = get_hv("Class::C3::MRO", 1);
+    hv_store_ent(hv, classname, (SV*)newRV_noinc((SV*)our_c3mro), 0);
+
+    methods = newHV();
+
+    /* skip first entry */
+    mroitems = AvFILLp(class_mro);
+    svp = AvARRAY(class_mro) + 1;
+    while(mroitems--) {
+        SV* mro_class = *svp++;
+        HV* mro_stash = gv_stashsv(mro_class, 0);
+
+        if(!mro_stash) continue;
+
+        /*if(!has_ovf) {
+            SV** ovfp = hv_fetch(mro_stash, "()", 2, 0);
+            if(ovfp) has_ovf = *ovfp;
+        }*/
+
+        hv_iterinit(mro_stash);
+        while(he = hv_iternext(mro_stash)) {
+            CV* code;
+            SV* mskey;
+            SV* msval = hv_iterval(mro_stash, he);
+            if(SvTYPE(msval) != SVt_PVGV || !(code = GvCVu(msval)))
+                continue;
+
+            mskey = hv_iterkeysv(he);
+            if(hv_exists_ent(methods, mskey, 0)) continue;
+            if((he = hv_fetch_ent(class_stash, mskey, 0, 0))) {
+                SV* val = HeVAL(he);
+                if(val && SvTYPE(val) == SVt_PVGV && GvCVu(msval))
+                    continue;
+            }
+
+            {
+                HV* meth_hash = newHV();
+                SV* orig = newSVsv(mro_class);
+                sv_catpvn(orig, "::", 2);
+                sv_catsv(orig, mskey);
+                hv_store(meth_hash, "orig", 4, orig, 0);
+                hv_store(meth_hash, "code", 4, newRV_inc((SV*)code), 0);
+                hv_store_ent(methods, mskey, newRV_noinc((SV*)meth_hash), 0);
+            }
+        }
+    }
+
+    hv_store(our_c3mro, "methods", 7, newRV_noinc((SV*)methods), 0);
+    hv_store(our_c3mro, "has_overload_fallback", 21, has_ovf ? SvREFCNT_inc(has_ovf) : &PL_sv_undef, 0);
+    XSRETURN_EMPTY;
 }
 
 XS(XS_next_can);
@@ -443,6 +535,8 @@ MODULE = Class::C3::XS	PACKAGE = Class::C3::XS
 
 BOOT:
     newXS("Class::C3::XS::calculateMRO", XS_Class_C3_XS_calculateMRO, __FILE__);
+    newXS("Class::C3::XS::_calculate_method_dispatch_table", XS_Class_C3_XS_calc_mdt, __FILE__);
     newXS("next::can", XS_next_can, __FILE__);
     newXS("next::method", XS_next_method, __FILE__);
     newXS("maybe::next::method", XS_maybe_next_method, __FILE__);
+
