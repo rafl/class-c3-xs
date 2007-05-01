@@ -401,14 +401,13 @@ XS(XS_Class_C3_XS_calc_mdt)
     HV* class_stash;
     AV* class_mro;
     HV* our_c3mro; /* $Class::C3::MRO{classname} */
-    SV* has_ovf;
+    SV* has_ovf = NULL;
     HV* methods;
     I32 mroitems;
 
     /* temps */
     HV* hv;
     HE* he;
-    SV* rv;
     SV** svp;
 
     if(items < 1 || items > 2)
@@ -427,6 +426,7 @@ XS(XS_Class_C3_XS_calc_mdt)
     hv_store(our_c3mro, "MRO", 3, (SV*)newRV_inc((SV*)class_mro), 0);
 
     hv = get_hv("Class::C3::MRO", 1);
+    hv_delete_ent(hv, classname, G_DISCARD, 0);
     hv_store_ent(hv, classname, (SV*)newRV_noinc((SV*)our_c3mro), 0);
 
     methods = newHV();
@@ -440,41 +440,45 @@ XS(XS_Class_C3_XS_calc_mdt)
 
         if(!mro_stash) continue;
 
-        /*if(!has_ovf) {
+        if(!has_ovf) {
             SV** ovfp = hv_fetch(mro_stash, "()", 2, 0);
             if(ovfp) has_ovf = *ovfp;
-        }*/
+        }
 
         hv_iterinit(mro_stash);
         while(he = hv_iternext(mro_stash)) {
             CV* code;
             SV* mskey;
-            SV* msval = hv_iterval(mro_stash, he);
-            if(SvTYPE(msval) != SVt_PVGV || !(code = GvCVu(msval)))
-                continue;
+            SV* msval;
+            HE* ourent;
+            HV* meth_hash;
+            SV* orig;
 
             mskey = hv_iterkeysv(he);
             if(hv_exists_ent(methods, mskey, 0)) continue;
-            if((he = hv_fetch_ent(class_stash, mskey, 0, 0))) {
-                SV* val = HeVAL(he);
-                if(val && SvTYPE(val) == SVt_PVGV && GvCVu(msval))
+
+            msval = hv_iterval(mro_stash, he);
+            if(SvTYPE(msval) != SVt_PVGV || !(code = GvCVu(msval)))
+                continue;
+
+            if((ourent = hv_fetch_ent(class_stash, mskey, 0, 0))) {
+                SV* val = HeVAL(ourent);
+                if(val && SvTYPE(val) == SVt_PVGV && GvCVu(val))
                     continue;
             }
 
-            {
-                HV* meth_hash = newHV();
-                SV* orig = newSVsv(mro_class);
-                sv_catpvn(orig, "::", 2);
-                sv_catsv(orig, mskey);
-                hv_store(meth_hash, "orig", 4, orig, 0);
-                hv_store(meth_hash, "code", 4, newRV_inc((SV*)code), 0);
-                hv_store_ent(methods, mskey, newRV_noinc((SV*)meth_hash), 0);
-            }
+            meth_hash = newHV();
+            orig = newSVsv(mro_class);
+            sv_catpvn(orig, "::", 2);
+            sv_catsv(orig, mskey);
+            hv_store(meth_hash, "orig", 4, orig, 0);
+            hv_store(meth_hash, "code", 4, newRV_inc((SV*)code), 0);
+            hv_store_ent(methods, mskey, newRV_noinc((SV*)meth_hash), 0);
         }
     }
 
     hv_store(our_c3mro, "methods", 7, newRV_noinc((SV*)methods), 0);
-    hv_store(our_c3mro, "has_overload_fallback", 21, has_ovf ? SvREFCNT_inc(has_ovf) : &PL_sv_undef, 0);
+    if(has_ovf) hv_store(our_c3mro, "has_overload_fallback", 21, SvREFCNT_inc(has_ovf), 0);
     XSRETURN_EMPTY;
 }
 
