@@ -19,3 +19,4 @@ cover_db
 ^\.c$
 \.[co]$
 \.bs$
+\.gz$
