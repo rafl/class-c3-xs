@@ -1,20 +1,24 @@
 Revision history for Perl extension Class::C3::XS
 
+0.01_07 Tue May 1, 2007
+        Added calculate_method_dispatch_tables
+        Converted to Module::Install
+
 0.01_06 Tue Apr 17, 2007
-	Better memory management?
+        Better memory management?
 
 0.01_05 Mon Apr 16, 2007
-	Fixed assumption of defined-ness when looking in %Class::C3::MRO
+        Fixed assumption of defined-ness when looking in %Class::C3::MRO
 
 0.01_04 Mon Apr 16, 2007
-	Fix threads issue?
+        Fix threads issue?
 
 0.01_03 Mon Apr 16, 2007
-	Fix AvARRAY lvalue issue
+        Fix AvARRAY lvalue issue
 
 0.01_02 Mon Apr 16, 2007
-	Fix MakeMaker compat, and source compat, maybe
-	  not it will work for more people
+        Fix MakeMaker compat, and source compat, maybe
+          not it will work for more people
 
 0.01_01 Sun Apr 15, 2007
-	Initial Release
+        Initial Release

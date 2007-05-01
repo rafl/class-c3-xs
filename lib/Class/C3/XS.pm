@@ -1,6 +1,10 @@
 package Class::C3::XS;
 
-our $VERSION = '0.01_06';
+use 5.008_000;
+use strict;
+use warnings;
+
+our $VERSION = '0.01_07';
 
 =pod
 
@@ -19,6 +23,10 @@ This contains XS performance enhancers for L<Class::C3>.
 The main L<Class::C3> package will use this package automatically
 if it can find it.  Do not use this package directly, use
 L<Class::C3> instead.
+
+The test suite here is not complete, although it does verify
+a few basic things.  The best testing comes from running the
+L<Class::C3> test suite *after* this module is installed.
 
 =head1 AUTHOR
 
