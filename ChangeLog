@@ -1,5 +1,8 @@
 Revision history for Perl extension Class::C3::XS
 
+0.03 Tues May 8, 2007
+        Remove Build.PL from the dist
+
 0.02 Thurs May 3, 2007
         First non-dev release
 

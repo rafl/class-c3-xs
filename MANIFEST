@@ -1,4 +1,3 @@
-Build.PL
 ChangeLog
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm

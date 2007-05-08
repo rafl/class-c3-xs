@@ -20,3 +20,4 @@ cover_db
 \.[co]$
 \.bs$
 \.gz$
+Build.PL
