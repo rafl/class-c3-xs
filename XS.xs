@@ -387,6 +387,21 @@ XS(XS_Class_C3_XS_calculateMRO)
     return;
 }
 
+XS(XS_Class_C3_XS_plsubgen);
+XS(XS_Class_C3_XS_plsubgen)
+{
+    #ifdef dVAR
+        dVAR; dXSARGS;
+    #else
+        dXSARGS;
+    #endif
+
+    SP -= items;
+    XPUSHs(sv_2mortal(newSViv(PL_sub_generation)));
+    PUTBACK;
+    return;
+}
+
 XS(XS_Class_C3_XS_calc_mdt);
 XS(XS_Class_C3_XS_calc_mdt)
 {
@@ -539,6 +554,7 @@ MODULE = Class::C3::XS	PACKAGE = Class::C3::XS
 
 BOOT:
     newXS("Class::C3::XS::calculateMRO", XS_Class_C3_XS_calculateMRO, __FILE__);
+    newXS("Class::C3::XS::_plsubgen", XS_Class_C3_XS_plsubgen, __FILE__);
     newXS("Class::C3::XS::_calculate_method_dispatch_table", XS_Class_C3_XS_calc_mdt, __FILE__);
     newXS("next::can", XS_next_can, __FILE__);
     newXS("next::method", XS_next_method, __FILE__);
