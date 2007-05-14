@@ -17,8 +17,10 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
     AV* isa;
     const char* stashname;
     STRLEN stashname_len;
+    I32 made_mortal_cache = 0;
 
     assert(stash);
+    assert(HvAUX(stash));
 
     stashname = HvNAME(stash);
     stashname_len = strlen(stashname);
@@ -32,6 +34,7 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
 
     if(!cache) {
         cache = (HV*)sv_2mortal((SV*)newHV());
+        made_mortal_cache = 1;
     }
     else {
         SV** cache_entry = hv_fetch(cache, stashname, stashname_len, 0);
@@ -41,71 +44,85 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
 
     /* not in cache, make a new one */
 
-    retval = newAV();
-    av_push(retval, newSVpvn(stashname, stashname_len)); /* us first */
-
     gvp = (GV**)hv_fetch(stash, "ISA", 3, FALSE);
     isa = (gvp && (gv = *gvp) && gv != (GV*)&PL_sv_undef) ? GvAV(gv) : NULL;
 
     if(isa && AvFILLp(isa) >= 0) {
         SV** seqs_ptr;
         I32 seqs_items;
-        HV* tails = (HV*)sv_2mortal((SV*)newHV());
-        AV* seqs = (AV*)sv_2mortal((SV*)newAV());
+        HV* const tails = (HV*)sv_2mortal((SV*)newHV());
+        AV* const seqs = (AV*)sv_2mortal((SV*)newAV());
+        I32* heads;
+
         I32 items = AvFILLp(isa) + 1;
         SV** isa_ptr = AvARRAY(isa);
         while(items--) {
-            AV* isa_lin;
-            SV* isa_item = *isa_ptr++;
-            HV* isa_item_stash = gv_stashsv(isa_item, 0);
+            SV* const isa_item = *isa_ptr++;
+            HV* const isa_item_stash = gv_stashsv(isa_item, 0);
             if(!isa_item_stash) {
-                isa_lin = newAV();
+                AV* const isa_lin = newAV();
                 av_push(isa_lin, newSVsv(isa_item));
+                av_push(seqs, (SV*)isa_lin);
             }
             else {
-                isa_lin = (AV*)sv_2mortal((SV*)__mro_linear_isa_c3(aTHX_ isa_item_stash, cache, level + 1)); /* recursion */
+                AV* const isa_lin = __mro_linear_isa_c3(aTHX_ isa_item_stash, cache, level + 1); /* recursion */
+                av_push(seqs, (SV*)isa_lin);
             }
-            av_push(seqs, (SV*)av_make(AvFILLp(isa_lin)+1, AvARRAY(isa_lin)));
         }
-        av_push(seqs, (SV*)av_make(AvFILLp(isa)+1, AvARRAY(isa)));
+        av_push(seqs, SvREFCNT_inc((SV*)isa));
 
+        /* This builds "heads", which as an array of integer array
+           indices, one per seq, which point at the virtual "head"
+           of the seq (initially zero) */
+
+        Newz(0xdead, heads, AvFILLp(seqs)+1, I32);
+
+        /* This builds %tails, which has one key for every class
+           mentioned in the tail of any sequence in @seqs (tail meaning
+           everything after the first class, the "head").  The value
+           is how many times this key appears in the tails of @seqs.
+        */
         seqs_ptr = AvARRAY(seqs);
         seqs_items = AvFILLp(seqs) + 1;
         while(seqs_items--) {
-            AV* seq = (AV*)*seqs_ptr++;
+            AV* const seq = (AV*)*seqs_ptr++;
             I32 seq_items = AvFILLp(seq);
             if(seq_items > 0) {
                 SV** seq_ptr = AvARRAY(seq) + 1;
                 while(seq_items--) {
-                    SV* seqitem = *seq_ptr++;
-                    HE* he = hv_fetch_ent(tails, seqitem, 0, 0);
+                    SV* const seqitem = *seq_ptr++;
+                    HE* const he = hv_fetch_ent(tails, seqitem, 0, 0);
                     if(!he) {
                         hv_store_ent(tails, seqitem, newSViv(1), 0);
                     }
                     else {
-                        SV* val = HeVAL(he);
+                        SV* const val = HeVAL(he);
                         sv_inc(val);
                     }
                 }
             }
         }
 
+        /* Initialize retval to build the return value in */
+        retval = newAV();
+        av_push(retval, newSVpvn(stashname, stashname_len)); /* us first */
+
         while(1) {
-            SV* seqhead = NULL;
             SV* cand = NULL;
             SV* winner = NULL;
-            SV* val;
-            HE* tail_entry;
-            AV* seq;
-            SV** avptr = AvARRAY(seqs);
-            items = AvFILLp(seqs)+1;
-            while(items--) {
+            int s;
+
+            SV** const avptr = AvARRAY(seqs);
+            for(s = 0; s <= AvFILLp(seqs); s++) {
                 SV** svp;
-                seq = (AV*)*avptr++;
-                if(AvFILLp(seq) < 0) continue;
-                svp = av_fetch(seq, 0, 0);
+                AV * const seq = (AV*)(avptr[s]);
+                SV* seqhead;
+                if(!seq) continue;
+                svp = av_fetch(seq, heads[s], 0);
                 seqhead = *svp;
                 if(!winner) {
+                    HE* tail_entry;
+                    SV* val;
                     cand = seqhead;
                     if((tail_entry = hv_fetch_ent(tails, cand, 0, 0))
                        && (val = HeVAL(tail_entry))
@@ -115,27 +132,50 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
                     av_push(retval, winner);
                 }
                 if(!sv_cmp(seqhead, winner)) {
-                    sv_2mortal(av_shift(seq));
-                    if(AvFILLp(seq) < 0) continue;
-                    svp = av_fetch(seq, 0, 0);
-                    seqhead = *svp;
-                    tail_entry = hv_fetch_ent(tails, seqhead, 0, 0);
-                    val = HeVAL(tail_entry);
-                    sv_dec(val);
+                    const int new_head = ++heads[s];
+                    if(new_head > AvFILLp(seq)) {
+                        SvREFCNT_dec(avptr[s]);
+                        avptr[s] = NULL;
+                    }
+                    else {
+                        HE* tail_entry;
+                        SV* val;
+                        /* Because we know this new seqhead used to be
+                           a tail, we can assume it is in tails and has
+                           a positive value, which we need to dec */
+                        svp = av_fetch(seq, new_head, 0);
+                        seqhead = *svp;
+                        tail_entry = hv_fetch_ent(tails, seqhead, 0, 0);
+                        val = HeVAL(tail_entry);
+                        sv_dec(val);
+                    }
                 }
             }
-            if(!cand) break;
+            if(!cand) {
+                Safefree(heads);
+                break;
+            }
             if(!winner) {
                 SvREFCNT_dec(retval);
+                Safefree(heads);
                 Perl_croak(aTHX_ "Inconsistent hierarchy during C3 merge of class '%s': "
                     "merging failed on parent '%s'", stashname, SvPV_nolen(cand));
             }
         }
     }
+    else { /* @ISA does not exist, or was empty */
+        retval = newAV();
+        av_push(retval, newSVpvn(stashname, stashname_len)); /* us first */
+    }
 
     SvREADONLY_on(retval);
-    hv_store(cache, stashname, stashname_len, (SV*)retval, 0);
-    return (AV*)SvREFCNT_inc(retval);
+
+    if(!made_mortal_cache) {
+        SvREFCNT_inc(retval);
+        hv_store(cache, stashname, stashname_len, (SV*)retval, 0);
+    }
+
+    return retval;
 }
 
 STATIC I32
@@ -438,10 +478,9 @@ XS(XS_Class_C3_XS_calc_mdt)
     class_mro = __mro_linear_isa_c3(aTHX_ class_stash, cache, 0);
 
     our_c3mro = newHV();
-    hv_store(our_c3mro, "MRO", 3, (SV*)newRV_inc((SV*)class_mro), 0);
+    hv_store(our_c3mro, "MRO", 3, (SV*)newRV_noinc((SV*)class_mro), 0);
 
     hv = get_hv("Class::C3::MRO", 1);
-    hv_delete_ent(hv, classname, G_DISCARD, 0);
     hv_store_ent(hv, classname, (SV*)newRV_noinc((SV*)our_c3mro), 0);
 
     methods = newHV();
