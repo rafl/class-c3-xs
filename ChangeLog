@@ -1,5 +1,9 @@
 Revision history for Perl extension Class::C3::XS
 
+0.05 Mon May 14, 2007
+        Backported optimizations and memory-management
+        fixes from bleadperl
+
 0.04 Sat May 12, 2007
         Small new private feature to help MRO::Compat
 
