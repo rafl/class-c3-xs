@@ -3,6 +3,53 @@
 #include "perl.h"
 #include "XSUB.h"
 
+/* *********** ppport stuff */
+
+#ifndef PERL_UNUSED_VAR
+#  define PERL_UNUSED_VAR(x) ((void)x)
+#endif
+
+#if defined(PERL_GCC_PEDANTIC)
+#  ifndef PERL_GCC_BRACE_GROUPS_FORBIDDEN
+#    define PERL_GCC_BRACE_GROUPS_FORBIDDEN
+#  endif
+#endif
+
+#if defined(__GNUC__) && !defined(PERL_GCC_BRACE_GROUPS_FORBIDDEN) && !defined(__cplusplus)
+#  ifndef PERL_USE_GCC_BRACE_GROUPS
+#    define PERL_USE_GCC_BRACE_GROUPS
+#  endif
+#endif
+
+#ifndef SvREFCNT_inc
+#  ifdef PERL_USE_GCC_BRACE_GROUPS
+#    define SvREFCNT_inc(sv)		\
+      ({				\
+          SV * const _sv = (SV*)(sv);	\
+          if (_sv)			\
+               (SvREFCNT(_sv))++;	\
+          _sv;				\
+      })
+#  else
+#    define SvREFCNT_inc(sv)	\
+          ((PL_Sv=(SV*)(sv)) ? (++(SvREFCNT(PL_Sv)),PL_Sv) : NULL)
+#  endif
+#endif
+
+#ifndef dAX
+#  define dAX                            I32 ax = MARK - PL_stack_base + 1
+#endif
+
+#ifndef dVAR
+#  define dVAR                           dNOOP
+#endif
+
+#ifndef packWARN
+#  define packWARN(a)                    (a)
+#endif
+
+/* *********** end ppport.h stuff */
+
 /* Most of this code is backported from the bleadperl patch's
    mro.c, and then modified to work with Class::C3's
    internals.
@@ -417,11 +464,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
 XS(XS_Class_C3_XS_calculateMRO);
 XS(XS_Class_C3_XS_calculateMRO)
 {
-#ifdef dVAR
     dVAR; dXSARGS;
-#else
-    dXSARGS;
-#endif
 
     SV* classname;
     HV* class_stash;
@@ -462,11 +505,7 @@ XS(XS_Class_C3_XS_calculateMRO)
 XS(XS_Class_C3_XS_plsubgen);
 XS(XS_Class_C3_XS_plsubgen)
 {
-    #ifdef dVAR
-        dVAR; dXSARGS;
-    #else
-        dXSARGS;
-    #endif
+    dVAR; dXSARGS;
 
     SP -= items;
     XPUSHs(sv_2mortal(newSViv(PL_sub_generation)));
@@ -477,11 +516,7 @@ XS(XS_Class_C3_XS_plsubgen)
 XS(XS_Class_C3_XS_calc_mdt);
 XS(XS_Class_C3_XS_calc_mdt)
 {
-#ifdef dVAR
     dVAR; dXSARGS;
-#else
-    dXSARGS;
-#endif
 
     SV* classname;
     HV* cache;
@@ -571,11 +606,7 @@ XS(XS_Class_C3_XS_calc_mdt)
 XS(XS_next_can);
 XS(XS_next_can)
 {
-#ifdef dVAR
     dVAR; dXSARGS;
-#else
-    dXSARGS;
-#endif
 
     SV* self = ST(0);
     SV* methcv = __nextcan(aTHX_ self, 0);
