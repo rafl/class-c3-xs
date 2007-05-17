@@ -67,7 +67,6 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
     I32 made_mortal_cache = 0;
 
     assert(stash);
-    assert(HvAUX(stash));
 
     stashname = HvNAME(stash);
     stashname_len = strlen(stashname);
