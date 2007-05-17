@@ -1,19 +1,28 @@
-Class::C3::XS version 0.05
-==============================
+NAME
+    Class::C3::XS - XS speedups for Class::C3
 
-INSTALLATION
+SUMMARY
+      use Class::C3; # Automatically loads Class::C3::XS
+                     #  if it's installed locally
 
-To install this module type the following:
+DESCRIPTION
+    This contains XS performance enhancers for Class::C3 version 0.16 and
+    higher. The main Class::C3 package will use this package automatically
+    if it can find it. Do not use this package directly, use Class::C3
+    instead.
 
-   perl Makefile.PL
-   make
-   make test
-   make install
+    The test suite here is not complete, although it does verify a few basic
+    things. The best testing comes from running the Class::C3 test suite
+    *after* this module is installed.
 
-COPYRIGHT AND LICENCE
+    This module won't do anything for you if you're running a version of
+    Class::C3 older than 0.16. (It's not a dependency because it would be
+    circular with the optional dep from that package to this one).
 
-Copyright (C) 2007 Brandon L. Black <blblack@gmail.com>
+AUTHOR
+    Brandon L. Black, <blblack@gmail.com>
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
+LICENSE
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
 
