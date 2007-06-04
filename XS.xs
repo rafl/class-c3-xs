@@ -266,9 +266,13 @@ __dopoptosub_at(const PERL_CONTEXT *cxstk, I32 startingblock) {
     return i;
 }
 
-STATIC SV*
-__nextcan(pTHX_ SV* self, I32 throw_nomethod)
+XS(XS_Class_C3_XS_nextcan);
+XS(XS_Class_C3_XS_nextcan)
 {
+    dVAR; dXSARGS;
+
+    SV* self;
+    I32 throw_nomethod;
     register I32 cxix;
     register const PERL_CONTEXT *ccstack = cxstack;
     const PERL_SI *top_si = PL_curstackinfo;
@@ -288,10 +292,15 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     GV* candidate = NULL;
     CV* cand_cv = NULL;
     const char *hvname;
-    I32 items;
+    I32 entries;
     HV* nmcache;
     HE* cache_entry;
     SV* cachekey;
+
+    self = ST(0);
+    throw_nomethod = SvIVX(ST(1));
+
+    SP -= items;
 
     if(sv_isobject(self))
         selfstash = SvSTASH(SvRV(self));
@@ -305,6 +314,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
         Perl_croak(aTHX_ "Can't use anonymous symbol table for method lookup");
 
     cxix = __dopoptosub_at(cxstack, cxstack_ix);
+    cxix = __dopoptosub_at(ccstack, cxix - 1);
 
     /* This block finds the contextually-enclosing fully-qualified subname,
        much like looking at (caller($i))[3] until you find a real sub that
@@ -376,9 +386,10 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
         if(val == &PL_sv_undef) {
             if(throw_nomethod)
                 Perl_croak(aTHX_ "No next::method '%s' found for %s", subname, hvname);
-            return &PL_sv_undef;
+            XSRETURN_EMPTY;
         }
-        return SvREFCNT_inc(val);
+        XPUSHs(sv_2mortal(newRV_inc(val)));
+        XSRETURN(1);
     }
 
     /* beyond here is just for cache misses, so perf isn't as critical */
@@ -389,20 +400,20 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     linear_av = __mro_linear_isa_c3(aTHX_ selfstash, NULL, 0);
 
     linear_svp = AvARRAY(linear_av);
-    items = AvFILLp(linear_av) + 1;
+    entries = AvFILLp(linear_av) + 1;
 
-    while (items--) {
+    while (entries--) {
         SV* const linear_sv = *linear_svp++;
         assert(linear_sv);
         if(sv_eq(linear_sv, stashname))
             break;
     }
 
-    if(items > 0) {
+    if(entries > 0) {
         SV* sub_sv = sv_2mortal(newSVpv(subname, subname_len));
         HV* cc3_mro = get_hv("Class::C3::MRO", 0);
 
-        while (items--) {
+        while (entries--) {
             SV* const linear_sv = *linear_svp++;
             assert(linear_sv);
 
@@ -448,7 +459,8 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
                 SvREFCNT_dec(linear_av);
                 SvREFCNT_inc((SV*)cand_cv);
                 hv_store_ent(nmcache, newSVsv(cachekey), (SV*)cand_cv, 0);
-                return (SV*)cand_cv;
+                XPUSHs(sv_2mortal(newRV_inc((SV*)cand_cv)));
+                XSRETURN(1);
             }
         }
     }
@@ -457,7 +469,7 @@ __nextcan(pTHX_ SV* self, I32 throw_nomethod)
     hv_store_ent(nmcache, newSVsv(cachekey), &PL_sv_undef, 0);
     if(throw_nomethod)
         Perl_croak(aTHX_ "No next::method '%s' found for %s", subname, hvname);
-    return &PL_sv_undef;
+    XSRETURN_EMPTY;
 }
 
 XS(XS_Class_C3_XS_calculateMRO);
@@ -602,62 +614,11 @@ XS(XS_Class_C3_XS_calc_mdt)
     XSRETURN_EMPTY;
 }
 
-XS(XS_next_can);
-XS(XS_next_can)
-{
-    dVAR; dXSARGS;
-
-    SV* self = ST(0);
-    SV* methcv = __nextcan(aTHX_ self, 0);
-
-    PERL_UNUSED_VAR(items);
-
-    if(methcv == &PL_sv_undef) {
-        ST(0) = &PL_sv_undef;
-    }
-    else {
-        ST(0) = sv_2mortal(newRV_inc(methcv));
-    }
-
-    XSRETURN(1);
-}
-
-XS(XS_next_method);
-XS(XS_next_method)
-{
-    dMARK;
-    dAX;
-    SV* self = ST(0);
-    SV* methcv = __nextcan(aTHX_ self, 1);
-
-    PL_markstack_ptr++;
-    call_sv(methcv, GIMME_V);
-}
-
-XS(XS_maybe_next_method);
-XS(XS_maybe_next_method)
-{
-    dMARK;
-    dAX;
-    SV* self = ST(0);
-    SV* methcv = __nextcan(aTHX_ self, 0);
-
-    if(methcv == &PL_sv_undef) {
-        ST(0) = &PL_sv_undef;
-        XSRETURN(1);
-    }
-
-    PL_markstack_ptr++;
-    call_sv(methcv, GIMME_V);
-}
-
 MODULE = Class::C3::XS	PACKAGE = Class::C3::XS
 
 BOOT:
     newXS("Class::C3::XS::calculateMRO", XS_Class_C3_XS_calculateMRO, __FILE__);
     newXS("Class::C3::XS::_plsubgen", XS_Class_C3_XS_plsubgen, __FILE__);
     newXS("Class::C3::XS::_calculate_method_dispatch_table", XS_Class_C3_XS_calc_mdt, __FILE__);
-    newXS("next::can", XS_next_can, __FILE__);
-    newXS("next::method", XS_next_method, __FILE__);
-    newXS("maybe::next::method", XS_maybe_next_method, __FILE__);
+    newXS("Class::C3::XS::_nextcan", XS_Class_C3_XS_nextcan, __FILE__);
 
