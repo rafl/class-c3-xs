@@ -271,8 +271,8 @@ XS(XS_Class_C3_XS_nextcan)
 {
     dVAR; dXSARGS;
 
-    SV* self;
-    I32 throw_nomethod;
+    SV* self = ST(0);
+    const I32 throw_nomethod = SvIVX(ST(1));
     register I32 cxix;
     register const PERL_CONTEXT *ccstack = cxstack;
     const PERL_SI *top_si = PL_curstackinfo;
@@ -296,9 +296,6 @@ XS(XS_Class_C3_XS_nextcan)
     HV* nmcache;
     HE* cache_entry;
     SV* cachekey;
-
-    self = ST(0);
-    throw_nomethod = SvIVX(ST(1));
 
     SP -= items;
 
