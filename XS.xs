@@ -311,7 +311,7 @@ XS(XS_Class_C3_XS_nextcan)
         Perl_croak(aTHX_ "Can't use anonymous symbol table for method lookup");
 
     cxix = __dopoptosub_at(cxstack, cxstack_ix);
-    cxix = __dopoptosub_at(ccstack, cxix - 1);
+    cxix = __dopoptosub_at(ccstack, cxix - 1); /* skip next::method, etc */
 
     /* This block finds the contextually-enclosing fully-qualified subname,
        much like looking at (caller($i))[3] until you find a real sub that
