@@ -296,7 +296,7 @@ XS(XS_Class_C3_XS_nextcan)
     HV* nmcache;
     HE* cache_entry;
     SV* cachekey;
-    int i;
+    I32 i;
 
     SP -= items;
 
