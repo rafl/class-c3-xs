@@ -273,7 +273,7 @@ XS(XS_Class_C3_XS_nextcan)
 
     SV* self = ST(0);
     const I32 throw_nomethod = SvIVX(ST(1));
-    register I32 cxix;
+    register I32 cxix = cxstack_ix;
     register const PERL_CONTEXT *ccstack = cxstack;
     const PERL_SI *top_si = PL_curstackinfo;
     HV* selfstash;
@@ -296,6 +296,7 @@ XS(XS_Class_C3_XS_nextcan)
     HV* nmcache;
     HE* cache_entry;
     SV* cachekey;
+    int i;
 
     SP -= items;
 
@@ -310,64 +311,65 @@ XS(XS_Class_C3_XS_nextcan)
     if (!hvname)
         Perl_croak(aTHX_ "Can't use anonymous symbol table for method lookup");
 
-    cxix = __dopoptosub_at(cxstack, cxstack_ix);
-    cxix = __dopoptosub_at(ccstack, cxix - 1); /* skip next::method, etc */
-
     /* This block finds the contextually-enclosing fully-qualified subname,
        much like looking at (caller($i))[3] until you find a real sub that
-       isn't ANON, etc */
-    for (;;) {
-        /* we may be in a higher stacklevel, so dig down deeper */
-        while (cxix < 0) {
-            if(top_si->si_type == PERLSI_MAIN)
-                Perl_croak(aTHX_ "next::method/next::can/maybe::next::method must be used in method context");
-            top_si = top_si->si_prev;
-            ccstack = top_si->si_cxstack;
-            cxix = __dopoptosub_at(ccstack, top_si->si_cxix);
-        }
+       isn't ANON, etc (also skips over pureperl next::method, etc) */
+    for(i = 0; i < 2; i++) {
+        cxix = __dopoptosub_at(ccstack, cxix);
+        for (;;) {
+            /* we may be in a higher stacklevel, so dig down deeper */
+            while (cxix < 0) {
+                if(top_si->si_type == PERLSI_MAIN)
+                    Perl_croak(aTHX_ "next::method/next::can/maybe::next::method must be used in method context");
+                top_si = top_si->si_prev;
+                ccstack = top_si->si_cxstack;
+                cxix = __dopoptosub_at(ccstack, top_si->si_cxix);
+            }
 
-        if(CxTYPE((PERL_CONTEXT*)(&ccstack[cxix])) != CXt_SUB
-          || (PL_DBsub && GvCV(PL_DBsub) && ccstack[cxix].blk_sub.cv == GvCV(PL_DBsub))) {
-            cxix = __dopoptosub_at(ccstack, cxix - 1);
-            continue;
-        }
+            if(CxTYPE((PERL_CONTEXT*)(&ccstack[cxix])) != CXt_SUB
+              || (PL_DBsub && GvCV(PL_DBsub) && ccstack[cxix].blk_sub.cv == GvCV(PL_DBsub))) {
+                cxix = __dopoptosub_at(ccstack, cxix - 1);
+                continue;
+            }
 
-        {
-            const I32 dbcxix = __dopoptosub_at(ccstack, cxix - 1);
-            if (PL_DBsub && GvCV(PL_DBsub) && dbcxix >= 0 && ccstack[dbcxix].blk_sub.cv == GvCV(PL_DBsub)) {
-                if(CxTYPE((PERL_CONTEXT*)(&ccstack[dbcxix])) != CXt_SUB) {
-                    cxix = dbcxix;
-                    continue;
+            {
+                const I32 dbcxix = __dopoptosub_at(ccstack, cxix - 1);
+                if (PL_DBsub && GvCV(PL_DBsub) && dbcxix >= 0 && ccstack[dbcxix].blk_sub.cv == GvCV(PL_DBsub)) {
+                    if(CxTYPE((PERL_CONTEXT*)(&ccstack[dbcxix])) != CXt_SUB) {
+                        cxix = dbcxix;
+                        continue;
+                    }
                 }
             }
+
+            cvgv = CvGV(ccstack[cxix].blk_sub.cv);
+
+            if(!isGV(cvgv)) {
+                cxix = __dopoptosub_at(ccstack, cxix - 1);
+                continue;
+            }
+
+            /* we found a real sub here */
+            sv = sv_2mortal(newSV(0));
+
+            gv_efullname3(sv, cvgv, NULL);
+
+            fq_subname = SvPVX(sv);
+            fq_subname_len = SvCUR(sv);
+
+            subname = strrchr(fq_subname, ':');
+            if(!subname)
+                Perl_croak(aTHX_ "next::method/next::can/maybe::next::method cannot find enclosing method");
+
+            subname++;
+            subname_len = fq_subname_len - (subname - fq_subname);
+            if(subname_len == 8 && strEQ(subname, "__ANON__")) {
+                cxix = __dopoptosub_at(ccstack, cxix - 1);
+                continue;
+            }
+            break;
         }
-
-        cvgv = CvGV(ccstack[cxix].blk_sub.cv);
-
-        if(!isGV(cvgv)) {
-            cxix = __dopoptosub_at(ccstack, cxix - 1);
-            continue;
-        }
-
-        /* we found a real sub here */
-        sv = sv_2mortal(newSV(0));
-
-        gv_efullname3(sv, cvgv, NULL);
-
-        fq_subname = SvPVX(sv);
-        fq_subname_len = SvCUR(sv);
-
-        subname = strrchr(fq_subname, ':');
-        if(!subname)
-            Perl_croak(aTHX_ "next::method/next::can/maybe::next::method cannot find enclosing method");
-
-        subname++;
-        subname_len = fq_subname_len - (subname - fq_subname);
-        if(subname_len == 8 && strEQ(subname, "__ANON__")) {
-            cxix = __dopoptosub_at(ccstack, cxix - 1);
-            continue;
-        }
-        break;
+        cxix--;
     }
 
     /* If we made it to here, we found our context */
