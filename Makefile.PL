@@ -1,4 +1,4 @@
-use inc::Module::Install 0.65;
+use inc::Module::Install 0.75;
 
 name           'Class-C3-XS';
 all_from       'lib/Class/C3/XS.pm';
