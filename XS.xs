@@ -577,7 +577,7 @@ XS(XS_Class_C3_XS_calc_mdt)
         }
 
         hv_iterinit(mro_stash);
-        while(he = hv_iternext(mro_stash)) {
+        while((he = hv_iternext(mro_stash))) {
             CV* code;
             SV* mskey;
             SV* msval;
