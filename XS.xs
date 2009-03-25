@@ -615,6 +615,8 @@ XS(XS_Class_C3_XS_calc_mdt)
 
 MODULE = Class::C3::XS	PACKAGE = Class::C3::XS
 
+PROTOTYPES: DISABLED
+
 BOOT:
     newXS("Class::C3::XS::calculateMRO", XS_Class_C3_XS_calculateMRO, __FILE__);
     newXS("Class::C3::XS::_plsubgen", XS_Class_C3_XS_plsubgen, __FILE__);
