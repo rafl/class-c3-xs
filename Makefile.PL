@@ -11,5 +11,4 @@ if(-e 'MANIFEST.SKIP') {
 }
 
 auto_provides;
-auto_install;
 WriteAll;
