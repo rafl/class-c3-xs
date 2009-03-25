@@ -144,7 +144,9 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
                     SV* const seqitem = *seq_ptr++;
                     HE* const he = hv_fetch_ent(tails, seqitem, 0, 0);
                     if(!he) {
-                        hv_store_ent(tails, seqitem, newSViv(1), 0);
+                        if(!hv_store_ent(tails, seqitem, newSViv(1), 0)) {
+                            croak("failed to store value in hash");
+                        }
                     }
                     else {
                         SV* const val = HeVAL(he);
@@ -251,7 +253,9 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
 
     if(!made_mortal_cache) {
         SvREFCNT_inc(retval);
-        hv_store(cache, stashname, stashname_len, (SV*)retval, 0);
+        if(!hv_store(cache, stashname, stashname_len, (SV*)retval, 0)) {
+            croak("failed to store value in hash");
+        }
     }
 
     return retval;
@@ -457,7 +461,9 @@ XS(XS_Class_C3_XS_nextcan)
             if (SvTYPE(candidate) == SVt_PVGV && (cand_cv = GvCV(candidate)) && !GvCVGEN(candidate)) {
                 SvREFCNT_dec(linear_av);
                 SvREFCNT_inc((SV*)cand_cv);
-                hv_store_ent(nmcache, newSVsv(cachekey), (SV*)cand_cv, 0);
+                if (!hv_store_ent(nmcache, newSVsv(cachekey), (SV*)cand_cv, 0)) {
+                    croak("failed to store value in hash");
+                }
                 XPUSHs(sv_2mortal(newRV_inc((SV*)cand_cv)));
                 XSRETURN(1);
             }
@@ -465,7 +471,9 @@ XS(XS_Class_C3_XS_nextcan)
     }
 
     SvREFCNT_dec(linear_av);
-    hv_store_ent(nmcache, newSVsv(cachekey), &PL_sv_undef, 0);
+    if (!hv_store_ent(nmcache, newSVsv(cachekey), &PL_sv_undef, 0)) {
+        croak("failed to store value in hash");
+    }
     if(throw_nomethod)
         Perl_croak(aTHX_ "No next::method '%s' found for %s", subname, hvname);
     XSRETURN_EMPTY;
@@ -555,10 +563,14 @@ XS(XS_Class_C3_XS_calc_mdt)
     class_mro = __mro_linear_isa_c3(aTHX_ class_stash, cache, 0);
 
     our_c3mro = newHV();
-    hv_store(our_c3mro, "MRO", 3, (SV*)newRV_noinc((SV*)class_mro), 0);
+    if(!hv_store(our_c3mro, "MRO", 3, (SV*)newRV_noinc((SV*)class_mro), 0)) {
+        croak("failed to store value in hash");
+    }
 
     hv = get_hv("Class::C3::MRO", 1);
-    hv_store_ent(hv, classname, (SV*)newRV_noinc((SV*)our_c3mro), 0);
+    if(!hv_store_ent(hv, classname, (SV*)newRV_noinc((SV*)our_c3mro), 0)) {
+        croak("failed to store value in hash");
+    }
 
     methods = newHV();
 
@@ -602,14 +614,22 @@ XS(XS_Class_C3_XS_calc_mdt)
             orig = newSVsv(mro_class);
             sv_catpvn(orig, "::", 2);
             sv_catsv(orig, mskey);
-            hv_store(meth_hash, "orig", 4, orig, 0);
-            hv_store(meth_hash, "code", 4, newRV_inc((SV*)code), 0);
-            hv_store_ent(methods, mskey, newRV_noinc((SV*)meth_hash), 0);
+            if( !hv_store(meth_hash, "orig", 4, orig, 0)
+             || !hv_store(meth_hash, "code", 4, newRV_inc((SV*)code), 0)
+             || !hv_store_ent(methods, mskey, newRV_noinc((SV*)meth_hash), 0) ) {
+                croak("failed to store value in hash");
+            }
         }
     }
 
-    hv_store(our_c3mro, "methods", 7, newRV_noinc((SV*)methods), 0);
-    if(has_ovf) hv_store(our_c3mro, "has_overload_fallback", 21, SvREFCNT_inc(has_ovf), 0);
+    if(!hv_store(our_c3mro, "methods", 7, newRV_noinc((SV*)methods), 0)) {
+        croak("failed to store value in hash");
+    }
+    if(has_ovf) {
+        if(!hv_store(our_c3mro, "has_overload_fallback", 21, SvREFCNT_inc(has_ovf), 0)) {
+            croak("failed to store value in hash");
+        }
+    }
     XSRETURN_EMPTY;
 }
 
