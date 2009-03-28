@@ -231,13 +231,22 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
             /* If we had candidates, but nobody won, then the @ISA
                hierarchy is not C3-incompatible */
             if(!winner) {
+                SV *errmsg;
+                I32 i;
                 /* we have to do some cleanup before we croak */
+
+                errmsg = newSVpvf("Inconsistent hierarchy during C3 merge of class '%s':\n\t"
+                                  "current merge results [\n", stashname);
+                for (i = 0; i <= av_len(retval); i++) {
+                    SV **elem = av_fetch(retval, i, 0);
+                    sv_catpvf(errmsg, "\t\t%"SVf",\n", SVfARG(*elem));
+                }
+                sv_catpvf(errmsg, "\t]\n\tmerging failed on '%"SVf"'", SVfARG(cand));
 
                 SvREFCNT_dec(retval);
                 Safefree(heads);
 
-                Perl_croak(aTHX_ "Inconsistent hierarchy during C3 merge of class '%s': "
-                    "merging failed on parent '%s'", stashname, SvPV_nolen(cand));
+                croak("%"SVf, SVfARG(errmsg));
             }
         }
     }
