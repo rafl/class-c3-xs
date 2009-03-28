@@ -23,15 +23,15 @@
 
 #ifndef SvREFCNT_inc
 #  ifdef PERL_USE_GCC_BRACE_GROUPS
-#    define SvREFCNT_inc(sv)		\
-      ({				\
-          SV * const _sv = (SV*)(sv);	\
-          if (_sv)			\
-               (SvREFCNT(_sv))++;	\
-          _sv;				\
+#    define SvREFCNT_inc(sv) \
+      ({ \
+          SV * const _sv = (SV*)(sv); \
+          if (_sv) \
+               (SvREFCNT(_sv))++; \
+          _sv; \
       })
 #  else
-#    define SvREFCNT_inc(sv)	\
+#    define SvREFCNT_inc(sv) \
           ((PL_Sv=(SV*)(sv)) ? (++(SvREFCNT(PL_Sv)),PL_Sv) : NULL)
 #  endif
 #endif
@@ -633,7 +633,7 @@ XS(XS_Class_C3_XS_calc_mdt)
     XSRETURN_EMPTY;
 }
 
-MODULE = Class::C3::XS	PACKAGE = Class::C3::XS
+MODULE = Class::C3::XS  PACKAGE = Class::C3::XS
 
 PROTOTYPES: DISABLED
 
