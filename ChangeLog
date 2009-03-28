@@ -1,5 +1,8 @@
 Revision history for Perl extension Class::C3::XS
 
+0.10 Sat Mar 28, 2009
+        - Improve error message on merge errors (Florian Ragwitz).
+
 0.09 Wed Mar 25, 2009
         - Use I32 instead of int (Brandon L Black).
         - Explicitly specify xs prototyping behaviour (Florian Ragwitz).
