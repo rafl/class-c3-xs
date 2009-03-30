@@ -50,6 +50,10 @@
 
 /* *********** end ppport.h stuff */
 
+#ifndef SVfARG
+#  define SVfARG(p)                      ((void*)(p))
+#endif
+
 /* Most of this code is backported from the bleadperl patch's
    mro.c, and then modified to work with Class::C3's
    internals.
