@@ -1,5 +1,9 @@
 Revision history for Perl extension Class::C3::XS
 
+0.11 Mon Mar 30, 2009
+        - Define SVfARG if the perl we're compiling for doesn't have
+          it (Florian Ragwitz).
+
 0.10 Sat Mar 28, 2009
         - Improve error message on merge errors (Florian Ragwitz).
 
