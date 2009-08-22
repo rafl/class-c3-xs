@@ -184,15 +184,16 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
                 SV** seq_ptr = AvARRAY(seq) + 1;
                 while(seq_items--) {
                     SV* const seqitem = *seq_ptr++;
-                    HE* const he = hv_fetch_ent(tails, seqitem, 0, 0);
-                    if(!he) {
-                        if(!hv_store_ent(tails, seqitem, newSViv(1), 0)) {
-                            croak("failed to store value in hash");
-                        }
-                    }
-                    else {
+                    /* LVALUE fetch will create a new undefined SV if necessary
+                     */
+                    HE* const he = hv_fetch_ent(tails, seqitem, 1, 0);
+                    if(he) {
                         SV* const val = HeVAL(he);
+                        /* This will increment undef to 1, which is what we
+                           want for a newly created entry.  */
                         sv_inc(val);
+                    } else {
+                        croak("failed to store value in hash");
                     }
                 }
             }
