@@ -411,8 +411,14 @@ XS(XS_Class_C3_XS_nextcan)
 
             gv_efullname3(sv, cvgv, NULL);
 
-            fq_subname = SvPVX(sv);
-            fq_subname_len = SvCUR(sv);
+            if (SvPOK(sv)) {
+                fq_subname = SvPVX(sv);
+                fq_subname_len = SvCUR(sv);
+
+                subname = strrchr(fq_subname, ':');
+            } else {
+                subname = NULL;
+            }
 
             subname = strrchr(fq_subname, ':');
             if(!subname)
