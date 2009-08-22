@@ -99,7 +99,7 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
     if(isa && AvFILLp(isa) >= 0) {
         SV** seqs_ptr;
         I32 seqs_items;
-        HV* const tails = (HV*)sv_2mortal((SV*)newHV());
+        HV* tails;
         AV* const seqs = (AV*)sv_2mortal((SV*)newAV());
         I32* heads;
 
@@ -122,10 +122,48 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
             else {
                 /* recursion */
                 AV* const isa_lin = __mro_linear_isa_c3(aTHX_ isa_item_stash, cache, level + 1);
+
+                if(items == 0 && AvFILLp(seqs) == -1) {
+                    /* Only one parent class. For this case, the C3
+                       linearisation is this class followed by the parent's
+                       linearisation, so don't bother with the expensive
+                       calculation.  */
+                    SV **svp;
+                    I32 subrv_items = AvFILLp(isa_lin) + 1;
+                    SV *const *subrv_p = AvARRAY(isa_lin);
+
+                    /* Hijack the allocated but unused array seqs to be the
+                       return value. It's currently mortalised.  */
+
+                    retval = seqs;
+
+                    av_extend(retval, subrv_items);
+                    AvFILLp(retval) = subrv_items;
+                    svp = AvARRAY(retval);
+
+                    /* First entry is this class.  */
+                    *svp++ = newSVpvn(stashname, stashname_len);
+
+                    while(subrv_items--) {
+                        /* These values are unlikely to be shared hash key
+                           scalars, so no point in adding code to optimising
+                           for a case that is unlikely to be true.
+                           (Or prove me wrong and do it.)  */
+
+                        SV *const val = *subrv_p++;
+                        *svp++ = newSVsv(val);
+                    }
+
+                    SvREFCNT_dec(isa_lin);
+                    SvREFCNT_inc(retval);
+
+                    goto done;
+                }
                 av_push(seqs, (SV*)isa_lin);
             }
         }
         av_push(seqs, SvREFCNT_inc((SV*)isa));
+        tails = (HV*)sv_2mortal((SV*)newHV());
 
         /* This builds "heads", which as an array of integer array
            indices, one per seq, which point at the virtual "head"
@@ -260,6 +298,7 @@ __mro_linear_isa_c3(pTHX_ HV* stash, HV* cache, I32 level)
         av_push(retval, newSVpvn(stashname, stashname_len));
     }
 
+done:
     /* we don't want anyone modifying the cache entry but us,
        and we do so by replacing it completely */
     SvREADONLY_on(retval);
