@@ -514,7 +514,7 @@ XS(XS_Class_C3_XS_nextcan)
             if (SvTYPE(candidate) == SVt_PVGV && (cand_cv = GvCV(candidate)) && !GvCVGEN(candidate)) {
                 SvREFCNT_dec(linear_av);
                 SvREFCNT_inc((SV*)cand_cv);
-                if (!hv_store_ent(nmcache, newSVsv(cachekey), (SV*)cand_cv, 0)) {
+                if (!hv_store_ent(nmcache, cachekey, (SV*)cand_cv, 0)) {
                     croak("failed to store value in hash");
                 }
                 XPUSHs(sv_2mortal(newRV_inc((SV*)cand_cv)));
@@ -524,7 +524,7 @@ XS(XS_Class_C3_XS_nextcan)
     }
 
     SvREFCNT_dec(linear_av);
-    if (!hv_store_ent(nmcache, newSVsv(cachekey), &PL_sv_undef, 0)) {
+    if (!hv_store_ent(nmcache, cachekey, &PL_sv_undef, 0)) {
         croak("failed to store value in hash");
     }
     if(throw_nomethod)
