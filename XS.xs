@@ -407,7 +407,7 @@ XS(XS_Class_C3_XS_nextcan)
             }
 
             /* we found a real sub here */
-            sv = sv_2mortal(newSV(0));
+            sv = sv_newmortal();
 
             gv_efullname3(sv, cvgv, NULL);
 
