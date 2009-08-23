@@ -4,7 +4,7 @@ use 5.006_000;
 use strict;
 use warnings;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12_01';
 
 =pod
 
@@ -46,6 +46,8 @@ it under the same terms as Perl itself.
 
 require XSLoader;
 XSLoader::load('Class::C3::XS', $VERSION);
+
+$VERSION = eval $VERSION;
 
 package # hide me from PAUSE
     next;
