@@ -1,5 +1,8 @@
 Revision history for Perl extension Class::C3::XS
 
+0.13 Thu Sep 24, 2009
+        - Release 0.12_03 as a stable release, without further modifications.
+
 0.12_03 Mon Sep 21, 2009
         - Fix compatibility with perl 5.6.x. Thanks again, Nicholas.
 
